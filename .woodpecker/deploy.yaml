@@ -1,0 +1,33 @@
+when:
+  - event: [push, manual]
+    branch: main
+
+steps:
+  - name: build
+    image: node:20-alpine
+    commands:
+      - npm ci
+      - npm run build
+
+  - name: deploy
+    image: alpine:3.20
+    environment:
+      DEPLOY_HOST: "10.0.0.13"
+      DEPLOY_USER: "deploy"
+      DEPLOY_PATH: "/mnt/NAS/apps/VIS1140"
+      DEPLOY_KEY:
+        from_secret: DEPLOY_KEY
+
+    commands:
+      - apk add --no-cache openssh-client rsync
+
+      - mkdir -p /root/.ssh
+      - echo "$DEPLOY_KEY" > /root/.ssh/id_ed25519
+      - chmod 600 /root/.ssh/id_ed25519
+
+      - echo "Host *" > /root/.ssh/config
+      - echo "  IdentityFile /root/.ssh/id_ed25519" >> /root/.ssh/config
+      - echo "  StrictHostKeyChecking no" >> /root/.ssh/config
+
+      # Sync built files to production
+      - rsync -avz --delete dist/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
