@@ -1,0 +1,266 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Responsive grid utilities */
+.grid-3-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+.grid-2-cols {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.grid-4-cols {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1100px) {
+  .grid-4-cols {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .grid-3-cols {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Center the last item when it's alone on a row (odd child in 2-col grid) */
+  .grid-3-cols > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 14px);
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .grid-3-cols,
+  .grid-2-cols,
+  .grid-4-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Prevent horizontal scroll */
+body, #root {
+  overflow-x: hidden;
+}
+
+/* Navigation controls */
+.nav-controls {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(26,26,36,0.95);
+  padding: 10px 20px;
+  border-radius: 30px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.1);
+  z-index: 100;
+}
+
+.nav-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.nav-counter {
+  font-size: 14px;
+  min-width: 50px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.keyboard-hints {
+  position: absolute;
+  bottom: 20px;
+  right: 24px;
+  font-size: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .nav-controls {
+    bottom: 10px;
+    gap: 12px;
+    padding: 8px 16px;
+  }
+
+  .nav-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .nav-counter {
+    font-size: 12px;
+    min-width: 40px;
+  }
+
+  .keyboard-hints {
+    display: none;
+  }
+}
+
+/* Slide content area */
+.slide-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 24px 80px 24px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .slide-container {
+    padding: 16px 16px 70px 16px;
+  }
+}
+
+/* Demo slide responsive layout */
+@media (max-width: 600px) {
+  .demo-panels {
+    flex-direction: column;
+    gap: 12px !important;
+  }
+}
+
+/* Slide transition animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animated gradient background orbs */
+@keyframes floatOrb1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(40px, 25px) scale(1.06); }
+  50% { transform: translate(15px, -35px) scale(0.94); }
+  75% { transform: translate(-30px, 18px) scale(1.04); }
+}
+
+@keyframes floatOrb2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(-35px, -22px) scale(1.04); }
+  50% { transform: translate(25px, 40px) scale(1.06); }
+  75% { transform: translate(18px, -18px) scale(0.96); }
+}
+
+@keyframes floatOrb3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-40px, 30px) scale(1.06); }
+  66% { transform: translate(30px, -25px) scale(0.94); }
+}
+
+.glow-orb-1 {
+  animation: floatOrb1 12s ease-in-out infinite;
+}
+
+.glow-orb-2 {
+  animation: floatOrb2 15s ease-in-out infinite;
+}
+
+.glow-orb-3 {
+  animation: floatOrb3 18s ease-in-out infinite;
+}
+
+/* Card hover effect - matches ProcessSlide click behavior */
+.card-hover {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.card-hover:hover {
+  background: rgba(255, 154, 0, 0.1) !important;
+  border-color: #FF9A00;
+  transform: scale(1.02);
+}
+
+.slide-animate {
+  animation: slideIn 0.4s ease-out forwards;
+}
+
+/* Staggered fade for direct heading/paragraph children only */
+.slide-animate > h1,
+.slide-animate > h2,
+.slide-animate > h3,
+.slide-animate > h4,
+.slide-animate > p {
+  animation: fadeIn 0.4s ease-out 0.1s both;
+}
+
+/* Cards and grid items animate together after headings */
+.slide-animate > div {
+  animation: fadeIn 0.5s ease-out 0.15s both;
+}
+
