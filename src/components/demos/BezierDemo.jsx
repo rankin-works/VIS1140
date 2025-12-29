@@ -7,16 +7,17 @@ export default function BezierDemo() {
   const animRef = useRef(null);
   const svgRef = useRef(null);
 
-  // Control points as state for dragging
-  const [points, setPoints] = useState({
-    p0: { x: 40, y: 140 },
-    p1: { x: 80, y: 40 },
-    p2: { x: 220, y: 40 },
-    p3: { x: 260, y: 140 }
-  });
-  const [dragging, setDragging] = useState(null);
-
-  const { p0, p1, p2, p3 } = points;
+  // Each anchor point has: position (x, y), handleIn (relative), handleOut (relative)
+  const [anchors, setAnchors] = useState([
+    { x: 40, y: 140, handleIn: { x: 0, y: 0 }, handleOut: { x: 40, y: -60 } },
+    { x: 150, y: 50, handleIn: { x: -40, y: 0 }, handleOut: { x: 40, y: 0 } },
+    { x: 260, y: 140, handleIn: { x: -40, y: -60 }, handleOut: { x: 0, y: 0 } }
+  ]);
+  const [dragging, setDragging] = useState(null); // { type: 'anchor'|'handleIn'|'handleOut', index: number }
+  const [selectedAnchor, setSelectedAnchor] = useState(null);
+  const [hovering, setHovering] = useState(false);
+  const justDragged = useRef(false);
+  const lastTap = useRef({ time: 0, index: null });
 
   // Convert screen coordinates to SVG coordinates
   const getSvgPoint = useCallback((e) => {
@@ -26,39 +27,233 @@ export default function BezierDemo() {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-    // Scale to SVG viewBox coordinates (0-300 x 0-180)
     const x = ((clientX - rect.left) / rect.width) * 300;
     const y = ((clientY - rect.top) / rect.height) * 180;
 
-    // Clamp to viewBox bounds with padding
     return {
-      x: Math.max(10, Math.min(290, x)),
-      y: Math.max(10, Math.min(170, y))
+      x: Math.max(5, Math.min(295, x)),
+      y: Math.max(5, Math.min(175, y))
     };
   }, []);
 
+  // Cubic Bezier calculation between two anchors
+  const cubicBezier = useCallback((p0, c0, c1, p1, t) => {
+    const mt = 1 - t;
+    const mt2 = mt * mt;
+    const mt3 = mt2 * mt;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return {
+      x: mt3 * p0.x + 3 * mt2 * t * c0.x + 3 * mt * t2 * c1.x + t3 * p1.x,
+      y: mt3 * p0.y + 3 * mt2 * t * c0.y + 3 * mt * t2 * c1.y + t3 * p1.y
+    };
+  }, []);
+
+  // Get absolute handle positions
+  const getHandlePos = useCallback((anchor, handleType) => {
+    const handle = handleType === 'in' ? anchor.handleIn : anchor.handleOut;
+    return { x: anchor.x + handle.x, y: anchor.y + handle.y };
+  }, []);
+
+  // Get point on the full path at parameter t (0-1)
+  const getPointOnPath = useCallback((t) => {
+    if (anchors.length < 2) return anchors[0] || { x: 150, y: 90 };
+
+    const numSegments = anchors.length - 1;
+    const segmentT = t * numSegments;
+    const segmentIndex = Math.min(Math.floor(segmentT), numSegments - 1);
+    const localT = segmentT - segmentIndex;
+
+    const a0 = anchors[segmentIndex];
+    const a1 = anchors[segmentIndex + 1];
+
+    // Control points for this segment
+    const p0 = { x: a0.x, y: a0.y };
+    const c0 = getHandlePos(a0, 'out');
+    const c1 = getHandlePos(a1, 'in');
+    const p1 = { x: a1.x, y: a1.y };
+
+    return cubicBezier(p0, c0, c1, p1, localT);
+  }, [anchors, cubicBezier, getHandlePos]);
+
+  const currentPoint = getPointOnPath(t);
+
+  // Generate SVG path
+  const generatePath = useCallback(() => {
+    if (anchors.length < 2) return '';
+
+    let path = `M ${anchors[0].x} ${anchors[0].y}`;
+
+    for (let i = 0; i < anchors.length - 1; i++) {
+      const a0 = anchors[i];
+      const a1 = anchors[i + 1];
+      const c0 = getHandlePos(a0, 'out');
+      const c1 = getHandlePos(a1, 'in');
+      path += ` C ${c0.x} ${c0.y}, ${c1.x} ${c1.y}, ${a1.x} ${a1.y}`;
+    }
+
+    return path;
+  }, [anchors, getHandlePos]);
+
   // Handle drag start
-  const handleDragStart = useCallback((pointKey) => (e) => {
+  const handleDragStart = useCallback((type, index) => (e) => {
     e.preventDefault();
-    setDragging(pointKey);
+    e.stopPropagation();
+    setDragging({ type, index });
+    setSelectedAnchor(index);
+    justDragged.current = true;
   }, []);
 
   // Handle drag move
   const handleDragMove = useCallback((e) => {
     if (!dragging) return;
-    const newPos = getSvgPoint(e);
-    setPoints(prev => ({
-      ...prev,
-      [dragging]: newPos
+    const pos = getSvgPoint(e);
+    const { type, index } = dragging;
+
+    setAnchors(prev => prev.map((anchor, i) => {
+      if (i !== index) return anchor;
+
+      if (type === 'anchor') {
+        // Move anchor and keep handles relative
+        const dx = pos.x - anchor.x;
+        const dy = pos.y - anchor.y;
+        return { ...anchor, x: pos.x, y: pos.y };
+      } else if (type === 'handleIn') {
+        // Move handle, mirror the other handle for smooth curve
+        const newHandleIn = { x: pos.x - anchor.x, y: pos.y - anchor.y };
+        const newHandleOut = { x: -newHandleIn.x, y: -newHandleIn.y };
+        return { ...anchor, handleIn: newHandleIn, handleOut: newHandleOut };
+      } else if (type === 'handleOut') {
+        const newHandleOut = { x: pos.x - anchor.x, y: pos.y - anchor.y };
+        const newHandleIn = { x: -newHandleOut.x, y: -newHandleOut.y };
+        return { ...anchor, handleIn: newHandleIn, handleOut: newHandleOut };
+      }
+      return anchor;
     }));
   }, [dragging, getSvgPoint]);
 
   // Handle drag end
   const handleDragEnd = useCallback(() => {
     setDragging(null);
+    // Reset justDragged after a short delay to allow click event to process first
+    setTimeout(() => {
+      justDragged.current = false;
+    }, 50);
   }, []);
 
-  // Add/remove global event listeners for dragging
+  // Add a new anchor point
+  const addAnchor = useCallback((e) => {
+    // Don't add if clicking on existing points or just finished dragging
+    const tag = e.target.tagName.toLowerCase();
+    if (tag === 'circle' || tag === 'rect') return;
+    if (justDragged.current) {
+      justDragged.current = false;
+      return;
+    }
+
+    const newPos = getSvgPoint(e);
+
+    // Find best position to insert
+    let insertIndex = anchors.length;
+    let minDist = Infinity;
+
+    for (let i = 0; i < anchors.length - 1; i++) {
+      const a0 = anchors[i];
+      const a1 = anchors[i + 1];
+      const midX = (a0.x + a1.x) / 2;
+      const midY = (a0.y + a1.y) / 2;
+      const dist = Math.sqrt(Math.pow(newPos.x - midX, 2) + Math.pow(newPos.y - midY, 2));
+
+      if (dist < minDist) {
+        minDist = dist;
+        insertIndex = i + 1;
+      }
+    }
+
+    // Calculate handles based on neighboring points
+    const prevAnchor = anchors[insertIndex - 1];
+    const nextAnchor = anchors[insertIndex] || anchors[insertIndex - 1];
+
+    const handleLength = 30;
+    const dx = nextAnchor.x - prevAnchor.x;
+    const dy = nextAnchor.y - prevAnchor.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = (dx / len) * handleLength;
+    const ny = (dy / len) * handleLength;
+
+    const newAnchor = {
+      x: newPos.x,
+      y: newPos.y,
+      handleIn: { x: -nx, y: -ny },
+      handleOut: { x: nx, y: ny }
+    };
+
+    setAnchors(prev => [
+      ...prev.slice(0, insertIndex),
+      newAnchor,
+      ...prev.slice(insertIndex)
+    ]);
+    setSelectedAnchor(insertIndex);
+  }, [anchors, getSvgPoint]);
+
+  // Delete an anchor
+  const deleteAnchor = useCallback((index) => {
+    if (anchors.length <= 2) return;
+    setAnchors(prev => prev.filter((_, i) => i !== index));
+    setSelectedAnchor(null);
+  }, [anchors.length]);
+
+  // Reset handles on double-click/double-tap
+  const resetHandles = useCallback((index) => {
+    setAnchors(prev => prev.map((anchor, i) => {
+      if (i !== index) return anchor;
+
+      const prevAnchor = prev[i - 1];
+      const nextAnchor = prev[i + 1];
+      const handleLength = 30;
+
+      let dx = 0, dy = 0;
+
+      if (prevAnchor && nextAnchor) {
+        // Middle point: direction based on neighbors
+        dx = nextAnchor.x - prevAnchor.x;
+        dy = nextAnchor.y - prevAnchor.y;
+      } else if (nextAnchor) {
+        // First point
+        dx = nextAnchor.x - anchor.x;
+        dy = nextAnchor.y - anchor.y;
+      } else if (prevAnchor) {
+        // Last point
+        dx = anchor.x - prevAnchor.x;
+        dy = anchor.y - prevAnchor.y;
+      }
+
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = (dx / len) * handleLength;
+      const ny = (dy / len) * handleLength;
+
+      return {
+        ...anchor,
+        handleIn: { x: -nx, y: -ny },
+        handleOut: { x: nx, y: ny }
+      };
+    }));
+  }, []);
+
+  // Handle double-tap on mobile
+  const handleDoubleTap = useCallback((index) => {
+    const now = Date.now();
+    if (lastTap.current.index === index && now - lastTap.current.time < 300) {
+      // Double tap detected
+      resetHandles(index);
+      lastTap.current = { time: 0, index: null };
+      return true;
+    }
+    lastTap.current = { time: now, index };
+    return false;
+  }, [resetHandles]);
+
+  // Global drag listeners
   useEffect(() => {
     if (dragging) {
       window.addEventListener('mousemove', handleDragMove);
@@ -74,43 +269,32 @@ export default function BezierDemo() {
     };
   }, [dragging, handleDragMove, handleDragEnd]);
 
-  // Bezier curve calculation
-  const bezier = useCallback((t) => ({
-    x: Math.pow(1 - t, 3) * p0.x + 3 * Math.pow(1 - t, 2) * t * p1.x + 3 * (1 - t) * Math.pow(t, 2) * p2.x + Math.pow(t, 3) * p3.x,
-    y: Math.pow(1 - t, 3) * p0.y + 3 * Math.pow(1 - t, 2) * t * p1.y + 3 * (1 - t) * Math.pow(t, 2) * p2.y + Math.pow(t, 3) * p3.y
-  }), [p0, p1, p2, p3]);
-
-  const pt = bezier(t);
-
-  // Generate SVG path
-  const path = Array.from({ length: 50 }, (_, i) => {
-    const p = bezier(i / 49);
-    return `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`;
-  }).join(' ');
-
   // Animation loop
   useEffect(() => {
     if (animating) {
       let start = null;
+      const duration = 1500 + (anchors.length * 500);
       const anim = (ts) => {
         if (!start) start = ts;
-        setT(((ts - start) / 2000) % 1);
+        setT(((ts - start) / duration) % 1);
         animRef.current = requestAnimationFrame(anim);
       };
       animRef.current = requestAnimationFrame(anim);
     }
     return () => animRef.current && cancelAnimationFrame(animRef.current);
-  }, [animating]);
+  }, [animating, anchors.length]);
 
-  // Reset points to default
-  const resetPoints = () => {
-    setPoints({
-      p0: { x: 40, y: 140 },
-      p1: { x: 80, y: 40 },
-      p2: { x: 220, y: 40 },
-      p3: { x: 260, y: 140 }
-    });
+  // Reset to default
+  const resetAnchors = () => {
+    setAnchors([
+      { x: 40, y: 140, handleIn: { x: 0, y: 0 }, handleOut: { x: 40, y: -60 } },
+      { x: 150, y: 50, handleIn: { x: -40, y: 0 }, handleOut: { x: 40, y: 0 } },
+      { x: 260, y: 140, handleIn: { x: -40, y: -60 }, handleOut: { x: 0, y: 0 } }
+    ]);
+    setSelectedAnchor(null);
   };
+
+  const showHandles = hovering || dragging !== null;
 
   return (
     <div style={{
@@ -120,106 +304,234 @@ export default function BezierDemo() {
       width: '100%',
       maxWidth: 700
     }}>
-      {/* SVG Visualization */}
+      {/* Instructions */}
+      <div style={{
+        fontSize: 'clamp(11px, 2vw, 13px)',
+        color: colors.textSecondary,
+        marginBottom: 12,
+        textAlign: 'center'
+      }}>
+        <span style={{ color: colors.success }}>Click to add anchor points</span>
+        {' | '}
+        <span style={{ color: colors.accentOrange }}>Drag anchors to move</span>
+        {' | '}
+        <span style={{ color: colors.accentBlue }}>Drag handles to curve</span>
+      </div>
+
+      {/* SVG Canvas */}
       <div style={{
         background: colors.cardBackground,
         borderRadius: 16,
         padding: 20,
-        marginBottom: 16,
+        marginBottom: 12,
         width: '100%',
         display: 'flex',
         justifyContent: 'center'
       }}>
         <svg
           ref={svgRef}
-          viewBox="0 0 300 200"
-          style={{ width: '100%', maxWidth: 600, touchAction: 'none' }}
+          viewBox="0 0 300 180"
+          style={{ width: '100%', maxWidth: 600, touchAction: 'none', cursor: 'crosshair' }}
+          onClick={addAnchor}
+          onMouseEnter={() => setHovering(true)}
+          onMouseLeave={() => setHovering(false)}
+          onTouchStart={() => setHovering(true)}
         >
-          {/* Control point lines */}
-          <line x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} stroke="rgba(255,154,0,0.4)" strokeWidth="1" strokeDasharray="6" />
-          <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="rgba(255,154,0,0.4)" strokeWidth="1" strokeDasharray="6" />
-          <line x1={p2.x} y1={p2.y} x2={p3.x} y2={p3.y} stroke="rgba(255,154,0,0.4)" strokeWidth="1" strokeDasharray="6" />
+          {/* Handle lines and circles */}
+          {anchors.map((anchor, i) => {
+            const handleIn = getHandlePos(anchor, 'in');
+            const handleOut = getHandlePos(anchor, 'out');
+            const isFirst = i === 0;
+            const isLast = i === anchors.length - 1;
+            const isSelected = selectedAnchor === i;
 
-          {/* Bezier curve */}
-          <path d={path} fill="none" stroke={colors.accentOrange} strokeWidth="2" />
+            return (
+              <g key={`handles-${i}`} style={{ opacity: showHandles ? 1 : 0, transition: 'opacity 0.2s' }}>
+                {/* Handle lines */}
+                {!isFirst && (
+                  <line
+                    x1={anchor.x}
+                    y1={anchor.y}
+                    x2={handleIn.x}
+                    y2={handleIn.y}
+                    stroke={colors.accentBlue}
+                    strokeWidth="1"
+                    opacity="0.6"
+                  />
+                )}
+                {!isLast && (
+                  <line
+                    x1={anchor.x}
+                    y1={anchor.y}
+                    x2={handleOut.x}
+                    y2={handleOut.y}
+                    stroke={colors.accentBlue}
+                    strokeWidth="1"
+                    opacity="0.6"
+                  />
+                )}
 
-          {/* Current point on curve (white circle) */}
-          <circle cx={pt.x} cy={pt.y} r="6" fill="#fff" />
+                {/* Handle circles */}
+                {!isFirst && (
+                  <circle
+                    cx={handleIn.x}
+                    cy={handleIn.y}
+                    r="5"
+                    fill={colors.accentBlue}
+                    style={{ cursor: 'grab' }}
+                    onMouseDown={handleDragStart('handleIn', i)}
+                    onTouchStart={handleDragStart('handleIn', i)}
+                  />
+                )}
+                {!isLast && (
+                  <circle
+                    cx={handleOut.x}
+                    cy={handleOut.y}
+                    r="5"
+                    fill={colors.accentBlue}
+                    style={{ cursor: 'grab' }}
+                    onMouseDown={handleDragStart('handleOut', i)}
+                    onTouchStart={handleDragStart('handleOut', i)}
+                  />
+                )}
+              </g>
+            );
+          })}
 
-          {/* Draggable anchor points */}
-          <circle
-            cx={p0.x} cy={p0.y} r="7"
-            fill={colors.accentOrange}
-            style={{ cursor: 'grab' }}
-            onMouseDown={handleDragStart('p0')}
-            onTouchStart={handleDragStart('p0')}
+          {/* The bezier curve */}
+          <path
+            d={generatePath()}
+            fill="none"
+            stroke={colors.accentOrange}
+            strokeWidth="2.5"
           />
-          <circle
-            cx={p3.x} cy={p3.y} r="7"
-            fill={colors.accentPink}
-            style={{ cursor: 'grab' }}
-            onMouseDown={handleDragStart('p3')}
-            onTouchStart={handleDragStart('p3')}
-          />
 
-          {/* Draggable control handles */}
-          <circle
-            cx={p1.x} cy={p1.y} r="7"
-            fill={colors.success}
-            style={{ cursor: 'grab' }}
-            onMouseDown={handleDragStart('p1')}
-            onTouchStart={handleDragStart('p1')}
-          />
-          <circle
-            cx={p2.x} cy={p2.y} r="7"
-            fill={colors.success}
-            style={{ cursor: 'grab' }}
-            onMouseDown={handleDragStart('p2')}
-            onTouchStart={handleDragStart('p2')}
-          />
+          {/* Animated point on curve */}
+          <circle cx={currentPoint.x} cy={currentPoint.y} r="6" fill="#fff" />
 
-          {/* Labels */}
-          <text x={p0.x} y={p0.y + 16} fill={colors.accentOrange} fontSize="8" textAnchor="middle" style={{ pointerEvents: 'none' }}>P0</text>
-          <text x={p1.x - 6} y={p1.y - -16} fill={colors.success} fontSize="8" style={{ pointerEvents: 'none' }}>P1</text>
-          <text x={p2.x - 6} y={p2.y - -16} fill={colors.success} fontSize="8" style={{ pointerEvents: 'none' }}>P2</text>
-          <text x={p3.x} y={p3.y + 16} fill={colors.accentPink} fontSize="8" textAnchor="middle" style={{ pointerEvents: 'none' }}>P3</text>
+          {/* Anchor points */}
+          {anchors.map((anchor, i) => {
+            const isFirst = i === 0;
+            const isLast = i === anchors.length - 1;
+            const anchorColor = isFirst ? colors.accentOrange : isLast ? colors.accentPink : colors.success;
+
+            return (
+              <g key={`anchor-${i}`} style={{ opacity: showHandles ? 1 : 0, transition: 'opacity 0.2s' }}>
+                {/* Selection ring */}
+                {selectedAnchor === i && (
+                  <circle
+                    cx={anchor.x}
+                    cy={anchor.y}
+                    r="12"
+                    fill="none"
+                    stroke={anchorColor}
+                    strokeWidth="2"
+                    strokeDasharray="3"
+                    opacity="0.6"
+                  />
+                )}
+                {/* Anchor point (square for accuracy to Illustrator) */}
+                <rect
+                  x={anchor.x - 5}
+                  y={anchor.y - 5}
+                  width="10"
+                  height="10"
+                  fill="transparent"
+                  stroke={anchorColor}
+                  strokeWidth="2"
+                  style={{ cursor: 'grab' }}
+                  onMouseDown={handleDragStart('anchor', i)}
+                  onTouchStart={(e) => {
+                    if (!handleDoubleTap(i)) {
+                      handleDragStart('anchor', i)(e);
+                    }
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    resetHandles(i);
+                  }}
+                />
+              </g>
+            );
+          })}
         </svg>
       </div>
 
-      {/* Formula display */}
+      {/* Formula */}
       <div style={{
         background: colors.cardBackground,
-        padding: '12px 24px',
+        padding: '12px 20px',
         borderRadius: 12,
-        marginBottom: 16,
+        marginBottom: 12,
         border: '1px solid rgba(255,154,0,0.3)',
-        textAlign: 'center'
+        textAlign: 'center',
+        width: '100%',
+        maxWidth: 600
       }}>
-        <div style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>Cubic Bezier Curve</div>
-        <code style={{ color: colors.accentOrange, fontFamily: 'monospace', fontSize: 'clamp(12px, 2.5vw, 16px)' }}>
-          B(t) = (1-t)³P0 + 3(1-t)²tP1 + 3(1-t)t²P2 + t³P3
+        <div style={{ fontSize: 'clamp(11px, 2vw, 13px)', color: colors.textSecondary, marginBottom: 6 }}>
+          Cubic Bézier Curve (used in Adobe Illustrator)
+        </div>
+        <code style={{
+          color: colors.accentOrange,
+          fontFamily: 'monospace',
+          fontSize: 'clamp(10px, 2vw, 14px)',
+          display: 'block'
+        }}>
+          B(t) = (1-t)³P₀ + 3(1-t)²tC₀ + 3(1-t)t²C₁ + t³P₁
         </code>
         <div style={{
+          fontSize: 'clamp(10px, 1.8vw, 12px)',
+          color: colors.textSecondary,
+          marginTop: 8,
           display: 'flex',
           justifyContent: 'center',
-          gap: 'clamp(8px, 2vw, 16px)',
-          marginTop: 8,
-          fontSize: 'clamp(11px, 2vw, 13px)',
-          fontFamily: 'monospace',
+          gap: 12,
           flexWrap: 'wrap'
         }}>
-          <span style={{ color: colors.accentOrange }}>P0({p0.x.toFixed(0)},{p0.y.toFixed(0)})</span>
-          <span style={{ color: colors.success }}>P1({p1.x.toFixed(0)},{p1.y.toFixed(0)})</span>
-          <span style={{ color: colors.success }}>P2({p2.x.toFixed(0)},{p2.y.toFixed(0)})</span>
-          <span style={{ color: colors.accentPink }}>P3({p3.x.toFixed(0)},{p3.y.toFixed(0)})</span>
+          <span><span style={{ color: colors.accentOrange }}>■</span> P₀, P₁ = Anchor points</span>
+          <span><span style={{ color: colors.accentBlue }}>●</span> C₀, C₁ = Control handles</span>
         </div>
-        <div style={{ fontSize: 14, color: colors.textSecondary, marginTop: 8, fontFamily: 'monospace' }}>
-          t = {t.toFixed(2)} → <span style={{ color: '#fff' }}>({pt.x.toFixed(0)}, {pt.y.toFixed(0)})</span>
+      </div>
+
+      {/* Info */}
+      <div style={{
+        background: colors.cardBackground,
+        padding: '10px 20px',
+        borderRadius: 12,
+        marginBottom: 12,
+        textAlign: 'center',
+        width: '100%',
+        maxWidth: 500
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
+          fontSize: 'clamp(11px, 2.2vw, 13px)'
+        }}>
+          <span style={{ color: colors.textSecondary }}>
+            Anchors: <span style={{ color: colors.accentOrange, fontWeight: 600 }}>{anchors.length}</span>
+          </span>
+          <span style={{ color: colors.textSecondary }}>
+            t = <span style={{ color: '#fff', fontFamily: 'monospace' }}>{t.toFixed(2)}</span>
+            {' → '}
+            <span style={{ color: '#fff', fontFamily: 'monospace' }}>
+              ({currentPoint.x.toFixed(0)}, {currentPoint.y.toFixed(0)})
+            </span>
+          </span>
         </div>
       </div>
 
       {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        flexWrap: 'wrap'
+      }}>
         <input
           type="range"
           min="0"
@@ -228,33 +540,50 @@ export default function BezierDemo() {
           value={t}
           onChange={(e) => setT(parseFloat(e.target.value))}
           disabled={animating}
-          style={{ width: 'min(240px, 50vw)', height: 8, accentColor: colors.accentOrange, cursor: 'pointer' }}
+          style={{ width: 'min(140px, 28vw)', height: 8, accentColor: colors.accentOrange, cursor: 'pointer' }}
         />
         <button
           onClick={() => setAnimating(!animating)}
           style={{
-            padding: '10px 20px',
+            padding: '8px 14px',
             background: animating ? colors.accentPink : 'linear-gradient(135deg, #FF9A00, #FF3366)',
             border: 'none',
             borderRadius: 20,
             color: '#fff',
             fontWeight: 600,
-            fontSize: 14,
+            fontSize: 12,
             cursor: 'pointer'
           }}
         >
           {animating ? 'Stop' : 'Animate'}
         </button>
+        {selectedAnchor !== null && anchors.length > 2 && (
+          <button
+            onClick={() => deleteAnchor(selectedAnchor)}
+            style={{
+              padding: '8px 14px',
+              background: '#ff6b6b',
+              border: 'none',
+              borderRadius: 20,
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: 'pointer'
+            }}
+          >
+            Delete
+          </button>
+        )}
         <button
-          onClick={resetPoints}
+          onClick={resetAnchors}
           style={{
-            padding: '10px 20px',
+            padding: '8px 14px',
             background: 'rgba(255,255,255,0.1)',
             border: '1px solid rgba(255,255,255,0.2)',
             borderRadius: 20,
             color: '#fff',
             fontWeight: 600,
-            fontSize: 14,
+            fontSize: 12,
             cursor: 'pointer'
           }}
         >

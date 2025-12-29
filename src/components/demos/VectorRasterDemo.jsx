@@ -26,7 +26,8 @@ export default function VectorRasterDemo() {
           style={{
             width: 'clamp(32px, 5vw, 44px)',
             height: 'clamp(32px, 5vw, 44px)',
-            borderRadius: 8
+            borderRadius: 8,
+            border: `2px solid ${bgColor}`
           }}
         />
         <div>
@@ -109,7 +110,7 @@ export default function VectorRasterDemo() {
           bgColor={colors.photoshop}
           src={catPng}
           alt="Raster cat"
-          label={zoom > 3 ? 'Pixelated!' : zoom > 2 ? 'Getting blocky...' : 'Looks fine'}
+          label={zoom > 3 ? 'Pixelated!' : zoom > 2 ? 'Getting blocky...' : 'Decent, but not perfect'}
           labelColor={zoom > 3 ? colors.error : zoom > 2 ? colors.warning : colors.success}
           labelBg={zoom > 3 ? 'rgba(255,51,102,0.2)' : zoom > 2 ? 'rgba(255,154,0,0.2)' : 'rgba(0,255,136,0.2)'}
           extensions=".jpg .png .gif .psd"

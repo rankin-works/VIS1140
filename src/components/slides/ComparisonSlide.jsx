@@ -28,7 +28,7 @@ export default function ComparisonSlide() {
           minWidth: 140
         }}>
           <div>
-            <img src={illustratorIcon} alt="Illustrator" style={{ width: 72, height: 72, borderRadius: 14 }} />
+            <img src={illustratorIcon} alt="Illustrator" style={{ width: 72, height: 72, borderRadius: 14, border: `2px solid ${colors.illustrator}` }} />
           </div>
           <div style={{ fontSize: 'clamp(20px, 4vw, 32px)', fontWeight: 600, marginBottom: 6 }}>Vector Graphics</div>
           <p style={{ color: colors.textSecondary, fontSize: 'clamp(13px, 2vw, 18px)', margin: 0 }}>Mathematical formulas used to create graphics, non-destructive, versatile and scalable.</p>
@@ -42,7 +42,7 @@ export default function ComparisonSlide() {
           minWidth: 140
         }}>
           <div>
-            <img src={photoshopIcon} alt="Photoshop" style={{ width: 72, height: 72, borderRadius: 14 }} />
+            <img src={photoshopIcon} alt="Photoshop" style={{ width: 72, height: 72, borderRadius: 14, border: `2px solid ${colors.photoshop}` }} />
           </div>
           <div style={{ fontSize: 'clamp(20px, 4vw, 32px)', fontWeight: 600, marginBottom: 6 }}>Raster Graphics</div>
           <p style={{ color: colors.textSecondary, fontSize: 'clamp(13px, 2vw, 18px)', margin: 0 }}>Pixels rendered on a grid, destructive, not as versatile or scalable, may require compression.</p>

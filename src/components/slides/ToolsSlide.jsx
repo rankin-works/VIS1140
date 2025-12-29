@@ -6,9 +6,9 @@ import photoshopIcon from '../../assets/Photoshop.svg';
 import indesignIcon from '../../assets/InDesign.svg';
 
 const tools = [
-  { name: 'Illustrator', icon: illustratorIcon, desc: 'Vector graphics. Resolution independent. Perfect for logos.' },
-  { name: 'Photoshop', icon: photoshopIcon, desc: 'Photo editing. Raster based, resolution dependent.' },
-  { name: 'InDesign', icon: indesignIcon, desc: 'Page layout. Books, flyers, brochures.' }
+  { name: 'Illustrator', icon: illustratorIcon, color: colors.illustrator, desc: 'Vector graphics. Resolution independent. Perfect for logos.' },
+  { name: 'Photoshop', icon: photoshopIcon, color: colors.photoshop, desc: 'Photo editing. Raster based, resolution dependent.' },
+  { name: 'InDesign', icon: indesignIcon, color: colors.indesign, desc: 'Page layout. Books, flyers, brochures.' }
 ];
 
 export default function ToolsSlide() {
@@ -51,9 +51,10 @@ export default function ToolsSlide() {
               style={{
                 width: 'clamp(56px, 10vw, 100px)',
                 height: 'clamp(56px, 10vw, 100px)',
-                borderRadius: 12,
+                borderRadius: 20,
                 margin: '0 auto clamp(12px, 2vw, 24px)',
-                display: 'block'
+                display: 'block',
+                border: `2px solid ${t.color}`
               }}
             />
             <h3 style={{ margin: '0 0 8px', fontSize: 'clamp(18px, 3vw, 28px)' }}>{t.name}</h3>

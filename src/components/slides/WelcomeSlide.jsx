@@ -6,46 +6,30 @@ export default function WelcomeSlide() {
   return (
     <div style={{ textAlign: 'center' }}>
       <h2 style={{
-        fontSize: 'clamp(2.5rem, 6vw, 4rem)',
+        fontSize: 'clamp(2rem, 6vw, 4rem)',
         fontWeight: 700,
         background: gradients.primary,
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
-        marginBottom: 48
+        marginBottom: 'clamp(24px, 4vw, 48px)'
       }}>
         Welcome!
       </h2>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 36,
-        background: colors.cardBackground,
-        padding: '36px 48px',
-        borderRadius: 24,
-        border: '1px solid rgba(255,255,255,0.1)'
-      }}>
+      <div className="welcome-card">
         <img
           src={avatarImg}
           alt="Jacob Rankin"
-          style={{
-            width: 120,
-            height: 120,
-            borderRadius: '50%',
-            objectFit: 'cover',
-            flexShrink: 0,
-            border: '3px solid',
-            borderColor: colors.accentOrange
-          }}
+          className="welcome-avatar"
         />
         <div style={{ textAlign: 'left' }}>
-          <h3 style={{ fontSize: 32, margin: 0 }}>Jacob Rankin</h3>
-          <p style={{ color: colors.accentOrange, fontWeight: 600, margin: '8px 0', fontSize: 20 }}>
+          <h3 className="welcome-name">Jacob Rankin</h3>
+          <p className="welcome-title">
             Adjunct Faculty
           </p>
-          <p style={{ color: colors.textSecondary, margin: '4px 0', fontSize: 18 }}>
+          <p className="welcome-info">
             Visual Communications Alumni
           </p>
-          <p style={{ color: colors.textSecondary, margin: '4px 0', fontSize: 18 }}>
+          <p className="welcome-info">
             Videographer, Editor & Motion Designer
           </p>
         </div>

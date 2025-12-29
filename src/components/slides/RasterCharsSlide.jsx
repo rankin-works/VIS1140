@@ -15,7 +15,7 @@ export default function RasterCharsSlide() {
     <div style={{ width: '100%', maxWidth: 900 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(12px, 2vw, 20px)', marginBottom: 'clamp(16px, 3vw, 36px)' }}>
         <div>
-        <img src={photoshopIcon} alt="Photoshop" style={{ width: 72, height: 72, borderRadius: 14 }} />
+        <img src={photoshopIcon} alt="Photoshop" style={{ width: 72, height: 72, borderRadius: 14, border: `2px solid ${colors.photoshop}` }} />
         </div>
         <h2 style={{
           fontSize: 'clamp(1.5rem, 4vw, 3.2rem)',

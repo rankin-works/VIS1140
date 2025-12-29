@@ -104,12 +104,15 @@ const parseSvgPaths = (svgCode) => {
 };
 
 // Regenerate SVG code from paths
-const generateSvgCode = (paths) => {
+const generateSvgCode = (paths, useStrokes = false, strokeWidth = 8) => {
   const pathStrings = paths.map(p => {
     const transform = p.transform.x !== 0 || p.transform.y !== 0 || p.transform.scale !== 1
       ? ` transform="translate(${p.transform.x}, ${p.transform.y}) scale(${p.transform.scale})"`
       : '';
-    return `<path d="${p.d}" style="fill:${p.fill}"${transform}/>`;
+    const style = useStrokes
+      ? `fill:none;stroke:${p.fill};stroke-width:${strokeWidth}`
+      : `fill:${p.fill}`;
+    return `<path d="${p.d}" style="${style}"${transform}/>`;
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 512 512">${pathStrings}<path d="M0 0h512v512H0z" style="fill:none"/></svg>`;
 };
@@ -152,6 +155,8 @@ export default function SVGEditorDemo() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragType, setDragType] = useState(null); // 'move' or 'scale-corner'
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [useStrokes, setUseStrokes] = useState(false);
+  const [strokeWidth, setStrokeWidth] = useState(8);
 
   const svgRef = useRef(null);
   const textareaRef = useRef(null);
@@ -178,11 +183,11 @@ export default function SVGEditorDemo() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Update SVG code when paths change
+  // Update SVG code when paths or stroke settings change
   useEffect(() => {
-    const newCode = generateSvgCode(paths);
+    const newCode = generateSvgCode(paths, useStrokes, strokeWidth);
     setSvgCode(newCode);
-  }, [paths]);
+  }, [paths, useStrokes, strokeWidth]);
 
   // Calculate bounding box for selected path
   useEffect(() => {
@@ -257,15 +262,26 @@ export default function SVGEditorDemo() {
       if (i !== selectedPath) return p;
       if (dragType === 'move') {
         return { ...p, transform: { ...p.transform, x: p.transform.x + dx, y: p.transform.y + dy } };
-      } else if (dragType?.startsWith('scale')) {
+      } else if (dragType?.startsWith('scale') && boundingBox) {
         const scaleFactor = 1 + (dx + dy) / 500;
-        const newScale = Math.max(0.1, Math.min(3, p.transform.scale * scaleFactor));
-        return { ...p, transform: { ...p.transform, scale: newScale } };
+        const oldScale = p.transform.scale;
+        const newScale = Math.max(0.1, Math.min(3, oldScale * scaleFactor));
+
+        // Calculate center of bounding box in original coordinates
+        const centerX = boundingBox.x + boundingBox.width / 2;
+        const centerY = boundingBox.y + boundingBox.height / 2;
+
+        // Adjust translation to keep center fixed
+        const scaleRatio = newScale / oldScale;
+        const newX = centerX - (centerX - p.transform.x) * scaleRatio;
+        const newY = centerY - (centerY - p.transform.y) * scaleRatio;
+
+        return { ...p, transform: { x: newX, y: newY, scale: newScale } };
       }
       return p;
     }));
     setDragStart(currentPoint);
-  }, [isDragging, selectedPath, dragStart, dragType, getSvgPoint]);
+  }, [isDragging, selectedPath, dragStart, dragType, getSvgPoint, boundingBox]);
 
   const handleDragEnd = useCallback(() => {
     setIsDragging(false);
@@ -330,7 +346,8 @@ export default function SVGEditorDemo() {
         style={{
           position: 'absolute', ...positions[position],
           width: 10, height: 10, background: '#fff', border: '2px solid #00bcd4',
-          borderRadius: 2, cursor: positions[position].cursor, zIndex: 10
+          borderRadius: 2, cursor: positions[position].cursor, zIndex: 10,
+          pointerEvents: 'auto'
         }}
       />
     );
@@ -358,16 +375,17 @@ export default function SVGEditorDemo() {
             <path
               key={i}
               d={path.d}
-              fill={path.fill}
+              fill={useStrokes ? 'transparent' : path.fill}
+              stroke={useStrokes ? path.fill : (selectedPath === i ? '#00bcd4' : 'none')}
+              strokeWidth={useStrokes ? strokeWidth : (selectedPath === i ? 4 : 0)}
               data-selectable="true"
               transform={`translate(${path.transform.x}, ${path.transform.y}) scale(${path.transform.scale})`}
               onMouseDown={(e) => handlePathMouseDown(i, e)}
               onTouchStart={(e) => handlePathMouseDown(i, e)}
               style={{
                 cursor: 'pointer',
-                stroke: selectedPath === i ? '#00bcd4' : 'none',
-                strokeWidth: selectedPath === i ? 4 : 0,
-                filter: selectedPath === i ? 'drop-shadow(0 0 8px rgba(0,188,212,0.5))' : 'none'
+                filter: selectedPath === i ? 'drop-shadow(0 0 8px rgba(0,188,212,0.5))' : 'none',
+                ...(selectedPath === i && useStrokes ? { strokeDasharray: '12 4' } : {})
               }}
             />
           ))}
@@ -375,11 +393,12 @@ export default function SVGEditorDemo() {
 
           {/* Bounding box overlay */}
           {boundingBox && selectedPath !== null && (
-            <g>
+            <g pointerEvents="none">
               <rect
                 x={boundingBox.x} y={boundingBox.y}
                 width={boundingBox.width} height={boundingBox.height}
                 fill="none" stroke="#00bcd4" strokeWidth="2" strokeDasharray="8 4"
+                pointerEvents="none"
               />
             </g>
           )}
@@ -395,7 +414,7 @@ export default function SVGEditorDemo() {
             height: (boundingBox.height / 1024) * svgRef.current.getBoundingClientRect().height,
             pointerEvents: 'none'
           }}>
-            <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'auto' }}>
+            <div style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'none' }}>
               <Handle position="nw" onDrag={handleScaleStart('scale-nw')} />
               <Handle position="ne" onDrag={handleScaleStart('scale-ne')} />
               <Handle position="sw" onDrag={handleScaleStart('scale-sw')} />
@@ -458,6 +477,43 @@ export default function SVGEditorDemo() {
                         color: '#fff', padding: '8px 12px', fontSize: 14, width: 90, fontFamily: 'monospace' }} />
                   </div>
                 ))}
+
+                {/* Fill/Stroke Toggle */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 12, marginTop: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <span style={{ color: colors.textSecondary, fontSize: 13 }}>Stroke Mode</span>
+                    <button
+                      onClick={() => setUseStrokes(!useStrokes)}
+                      style={{
+                        padding: '6px 14px',
+                        background: useStrokes ? colors.accentOrange : 'rgba(255,255,255,0.1)',
+                        border: useStrokes ? 'none' : '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: 16,
+                        color: '#fff',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {useStrokes ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                  {useStrokes && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ color: colors.textSecondary, fontSize: 13 }}>Width</span>
+                      <input
+                        type="range"
+                        min="1"
+                        max="20"
+                        value={strokeWidth}
+                        onChange={(e) => setStrokeWidth(Number(e.target.value))}
+                        style={{ flex: 1, accentColor: colors.accentOrange }}
+                      />
+                      <span style={{ color: '#fff', fontSize: 13, minWidth: 24 }}>{strokeWidth}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </CollapsiblePanel>
           </div>

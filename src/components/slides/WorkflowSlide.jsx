@@ -36,17 +36,17 @@ export default function WorkflowSlide() {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, marginBottom: 28 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <img src={illustratorIcon} alt="Illustrator" style={{ width: 72, height: 72, borderRadius: 14 }} />
+          <img src={illustratorIcon} alt="Illustrator" style={{ width: 72, height: 72, borderRadius: 14, border: `2px solid ${colors.illustrator}` }} />
           <span style={{ fontSize: 18 }}>.eps</span>
         </div>
         <span style={{ fontSize: 36, color: colors.textSecondary }}>→</span>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <img src={indesignIcon} alt="InDesign" style={{ width: 72, height: 72, borderRadius: 14 }} />
+          <img src={indesignIcon} alt="InDesign" style={{ width: 72, height: 72, borderRadius: 14, border: `2px solid ${colors.indesign}` }} />
           <span style={{ fontSize: 18 }}>Layout</span>
         </div>
         <span style={{ fontSize: 36, color: colors.textSecondary }}>←</span>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <img src={photoshopIcon} alt="Photoshop" style={{ width: 72, height: 72, borderRadius: 14 }} />
+          <img src={photoshopIcon} alt="Photoshop" style={{ width: 72, height: 72, borderRadius: 14, border: `2px solid ${colors.photoshop}` }} />
           <span style={{ fontSize: 18 }}>.tiff</span>
         </div>
       </div>
