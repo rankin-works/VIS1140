@@ -62,6 +62,23 @@ export default function ToolsSlide() {
           </div>
         ))}
       </div>
+
+      {/* Info text */}
+      <p style={{
+        color: colors.textSecondary,
+        fontSize: 'clamp(0.85rem, 2vw, 1rem)',
+        lineHeight: 1.7,
+        marginTop: 'clamp(24px, 4vw, 40px)',
+        textAlign: 'center',
+        maxWidth: 900,
+        marginLeft: 'auto',
+        marginRight: 'auto'
+      }}>
+        All students have full access to the Adobe Creative Cloud. You can login to Adobe with your Sinclair e-mail.
+        Download and install Adobe Creative Cloud on your own laptop or desktop computer.
+        The Creative Cloud also comes with cloud storage to save your Photoshop, Illustrator, and InDesign documents directly to your Creative Cloud account.
+        I recommend saving your files to a flashdrive, external SSD, or OneDrive <span style={{ color: colors.accentOrange }}>(recommended)</span>.
+      </p>
     </div>
   );
 }

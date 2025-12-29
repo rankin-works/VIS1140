@@ -51,7 +51,7 @@ export default function WorkflowSlide() {
         </div>
       </div>
       <p style={{ color: colors.textSecondary, fontSize: 18 }}>
-        Always keep copies of your original .ai and .psd files!
+        Always keep copies of your original .ai and .psd files even if you have exported .eps and .tiff files! Files are a big part of your grade.
       </p>
     </div>
   );

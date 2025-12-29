@@ -24,7 +24,7 @@ export default function Header() {
           <h1 style={{
             fontSize: 'clamp(1rem, 2vw, 1.25rem)',
             fontWeight: 700,
-            background: gradients.primary,
+            background: gradients.headerlogo,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text'

@@ -1,9 +1,10 @@
-import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
+import ParticleNetwork from '../ParticleNetwork';
 import { colors } from '../../styles/theme';
 
 export default function Layout() {
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -55,6 +56,9 @@ export default function Layout() {
             right: '-10%'
           }}
         />
+
+        {/* Particle network with connecting lines */}
+        <ParticleNetwork particleCount={25} lineDistance={150} />
       </div>
 
       <Header />

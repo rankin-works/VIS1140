@@ -33,6 +33,7 @@ export const colors = {
 export const gradients = {
   primary: 'linear-gradient(135deg, #FF9A00, #FF3366)',
   progress: 'linear-gradient(90deg, #FF9A00, #FF3366)',
+  headerlogo: 'linear-gradient(90deg, #35c6ffff, #007cf0ff)',
 };
 
 export const shadows = {

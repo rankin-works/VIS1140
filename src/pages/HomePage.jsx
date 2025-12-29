@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { colors, gradients, shadows, borderRadius } from '../styles/theme';
+import sinclairLogo from '../assets/sinclair.svg';
 
 const navCards = [
   {
     title: 'Presentations',
-    description: 'Interactive slides covering design fundamentals, tools, and workflows.',
+    description: 'All class presentations with interactive demonstrations.',
     icon: '📽️',
     path: '/presentations',
     color: colors.accentOrange
@@ -19,7 +20,7 @@ const navCards = [
   },
   {
     title: 'Resources',
-    description: 'Reference materials, tutorials, and helpful links for your design journey.',
+    description: 'Reference materials, tutorials, and downloads to assist your learning.',
     icon: '📚',
     path: '/resources',
     color: colors.accentBlue
@@ -39,12 +40,12 @@ export default function HomePage() {
           fontSize: 'clamp(2.5rem, 6vw, 4rem)',
           fontWeight: 700,
           marginBottom: 16,
-          background: gradients.primary,
+          background: gradients.headerlogo,
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text'
         }}>
-          VIS1140
+          VIS 1140
         </h1>
         <h2 style={{
           fontSize: 'clamp(1.25rem, 3vw, 1.75rem)',
@@ -57,11 +58,11 @@ export default function HomePage() {
         <p style={{
           fontSize: 'clamp(1rem, 2vw, 1.125rem)',
           color: colors.textSecondary,
-          maxWidth: 660,
+          maxWidth: 700,
           margin: '0 auto',
           lineHeight: 1.6
         }}>
-          Welcome to the course hub. Explore presentations, access project briefs,
+          Welcome to the course hub for VIS 1140. Explore presentations, access project briefs,
           and find resources to help you succeed in your design journey.
         </p>
       </div>
@@ -114,6 +115,58 @@ export default function HomePage() {
             </div>
           </Link>
         ))}
+      </div>
+
+      {/* Disclaimer and eLearn Button */}
+      <div style={{ textAlign: 'center', marginTop: 50 }}>
+        <p style={{
+          fontSize: '0.85rem',
+          color: colors.textSecondary,
+          maxWidth: 600,
+          margin: '0 auto 24px',
+          lineHeight: 1.6,
+          opacity: 0.8
+        }}>
+          This website is custom designed and managed by Jacob Rankin, adjunct faculty of Sinclair Community College.
+          This is not an official Sinclair Community College website or application.
+          All assignments are to be submitted via elearn.sinclair.edu.
+          This website is only meant to serve as an interactive resource hub for the class.
+        </p>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <a
+          href="https://elearn.sinclair.edu"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '14px 28px',
+            background: colors.cardBackground,
+            borderRadius: borderRadius.large,
+            boxShadow: shadows.card,
+            textDecoration: 'none',
+            color: colors.textPrimary,
+            fontWeight: 500,
+            fontSize: '1rem',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 154, 0, 0.1)';
+            e.currentTarget.style.borderColor = colors.accentOrange;
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = colors.cardBackground;
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          <img src={sinclairLogo} alt="Sinclair" style={{ width: 24, height: 24 }} />
+          Go to eLearn
+        </a>
       </div>
     </div>
   );

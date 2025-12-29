@@ -147,8 +147,10 @@ const CollapsiblePanel = ({ title, isOpen, onToggle, children }) => (
 );
 
 export default function SVGEditorDemo() {
-  const [paths, setPaths] = useState(() => parseSvgPaths(initialSvg));
-  const [svgCode, setSvgCode] = useState(initialSvg);
+  const [paths, setPaths] = useState([]);
+  const [svgCode, setSvgCode] = useState('');
+  const [displayedCode, setDisplayedCode] = useState('');
+  const [isAnimating, setIsAnimating] = useState(true);
   const [svgColors, setSvgColors] = useState(defaultColors);
   const [selectedPath, setSelectedPath] = useState(null);
   const [boundingBox, setBoundingBox] = useState(null);
@@ -161,6 +163,7 @@ export default function SVGEditorDemo() {
   const svgRef = useRef(null);
   const textareaRef = useRef(null);
   const preRef = useRef(null);
+  const animationRef = useRef(null);
 
   // Panel states
   const [isMobile, setIsMobile] = useState(false);
@@ -183,11 +186,60 @@ export default function SVGEditorDemo() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Update SVG code when paths or stroke settings change
+  // Typewriter animation effect
   useEffect(() => {
+    if (!isAnimating) return;
+
+    let currentIndex = 0;
+    const charsPerFrame = 3; // Characters to add per frame
+    const frameDelay = 25; // Slower typing speed
+
+    const animate = () => {
+      currentIndex += charsPerFrame;
+      const partialCode = initialSvg.slice(0, currentIndex);
+      setDisplayedCode(partialCode);
+
+      // Parse and update paths as code is typed
+      const partialPaths = parseSvgPaths(partialCode);
+      if (partialPaths.length > 0) {
+        setPaths(partialPaths);
+      }
+
+      if (currentIndex < initialSvg.length) {
+        animationRef.current = setTimeout(animate, frameDelay);
+      } else {
+        // Animation complete
+        setDisplayedCode(initialSvg);
+        setSvgCode(initialSvg);
+        setPaths(parseSvgPaths(initialSvg));
+        setIsAnimating(false);
+      }
+    };
+
+    // Start animation after a brief delay
+    animationRef.current = setTimeout(animate, 500);
+
+    return () => {
+      if (animationRef.current) {
+        clearTimeout(animationRef.current);
+      }
+    };
+  }, [isAnimating]);
+
+  // Auto-scroll code panel during animation
+  useEffect(() => {
+    if (isAnimating && preRef.current) {
+      preRef.current.scrollTop = preRef.current.scrollHeight;
+    }
+  }, [displayedCode, isAnimating]);
+
+  // Update SVG code when paths or stroke settings change (only when not animating)
+  useEffect(() => {
+    if (isAnimating) return;
     const newCode = generateSvgCode(paths, useStrokes, strokeWidth);
     setSvgCode(newCode);
-  }, [paths, useStrokes, strokeWidth]);
+    setDisplayedCode(newCode);
+  }, [paths, useStrokes, strokeWidth, isAnimating]);
 
   // Calculate bounding box for selected path
   useEffect(() => {
@@ -220,8 +272,9 @@ export default function SVGEditorDemo() {
     if (!svgRef.current) return { x: 0, y: 0 };
     const svg = svgRef.current;
     const rect = svg.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    // Handle pointer, mouse, or touch events
+    const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
     // ViewBox is -256 -256 1024 1024, so we map to that coordinate space
     return {
       x: ((clientX - rect.left) / rect.width) * 1024 - 256,
@@ -229,10 +282,13 @@ export default function SVGEditorDemo() {
     };
   }, []);
 
-  // Handle mousedown on path - select and/or start drag
-  const handlePathMouseDown = useCallback((index, e) => {
+  // Handle pointer down on path - select and start drag (works for mouse and touch)
+  const handlePathPointerDown = useCallback((index, e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Capture pointer for reliable tracking
+    e.target.setPointerCapture(e.pointerId);
 
     // Always select the path
     setSelectedPath(index);
@@ -290,17 +346,19 @@ export default function SVGEditorDemo() {
 
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener('mousemove', handleDragMove);
-      window.addEventListener('mouseup', handleDragEnd);
-      window.addEventListener('touchmove', handleDragMove);
-      window.addEventListener('touchend', handleDragEnd);
+      const handlePointerMoveWithPrevent = (e) => {
+        e.preventDefault();
+        handleDragMove(e);
+      };
+      window.addEventListener('pointermove', handlePointerMoveWithPrevent, { passive: false });
+      window.addEventListener('pointerup', handleDragEnd);
+      window.addEventListener('pointercancel', handleDragEnd);
+      return () => {
+        window.removeEventListener('pointermove', handlePointerMoveWithPrevent);
+        window.removeEventListener('pointerup', handleDragEnd);
+        window.removeEventListener('pointercancel', handleDragEnd);
+      };
     }
-    return () => {
-      window.removeEventListener('mousemove', handleDragMove);
-      window.removeEventListener('mouseup', handleDragEnd);
-      window.removeEventListener('touchmove', handleDragMove);
-      window.removeEventListener('touchend', handleDragEnd);
-    };
   }, [isDragging, handleDragMove, handleDragEnd]);
 
   const handleScroll = (e) => {
@@ -333,21 +391,22 @@ export default function SVGEditorDemo() {
 
   // Handle for bounding box corners
   const Handle = ({ position, onDrag }) => {
+    const handleSize = isMobile ? 28 : 14;
+    const offset = -(handleSize / 2);
     const positions = {
-      'nw': { left: -5, top: -5, cursor: 'nwse-resize' },
-      'ne': { right: -5, top: -5, cursor: 'nesw-resize' },
-      'sw': { left: -5, bottom: -5, cursor: 'nesw-resize' },
-      'se': { right: -5, bottom: -5, cursor: 'nwse-resize' }
+      'nw': { left: offset, top: offset, cursor: 'nwse-resize' },
+      'ne': { right: offset, top: offset, cursor: 'nesw-resize' },
+      'sw': { left: offset, bottom: offset, cursor: 'nesw-resize' },
+      'se': { right: offset, bottom: offset, cursor: 'nwse-resize' }
     };
     return (
       <div
-        onMouseDown={onDrag}
-        onTouchStart={onDrag}
+        onPointerDown={onDrag}
         style={{
           position: 'absolute', ...positions[position],
-          width: 10, height: 10, background: '#fff', border: '2px solid #00bcd4',
-          borderRadius: 2, cursor: positions[position].cursor, zIndex: 10,
-          pointerEvents: 'auto'
+          width: handleSize, height: handleSize, background: '#fff', border: '2px solid #00bcd4',
+          borderRadius: isMobile ? 6 : 2, cursor: positions[position].cursor, zIndex: 10,
+          pointerEvents: 'auto', touchAction: 'none'
         }}
       />
     );
@@ -356,15 +415,18 @@ export default function SVGEditorDemo() {
   return (
     <div style={{ display: 'flex', gap: 24, width: '100%', maxWidth: 1100, flexWrap: 'wrap' }}>
       {/* SVG Preview with interactive paths */}
-      <div style={{
-        flex: isMobile ? '1 1 100%' : '1 1 300px',
-        minWidth: isMobile ? 'auto' : 280,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: colors.cardBackground, borderRadius: 16,
-        padding: isMobile ? 16 : 24, minHeight: isMobile ? 200 : 350,
-        order: isMobile ? -1 : 0, position: 'relative',
-        overflow: 'visible'
-      }}>
+      <div
+        style={{
+          flex: isMobile ? '1 1 100%' : '1 1 300px',
+          minWidth: isMobile ? 'auto' : 280,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: colors.cardBackground, borderRadius: 16,
+          padding: isMobile ? 16 : 24, minHeight: isMobile ? 200 : 350,
+          order: isMobile ? -1 : 0, position: 'relative',
+          overflow: 'visible',
+          touchAction: 'none'
+        }}
+      >
         <svg
           ref={svgRef}
           viewBox="-256 -256 1024 1024"
@@ -380,10 +442,10 @@ export default function SVGEditorDemo() {
               strokeWidth={useStrokes ? strokeWidth : (selectedPath === i ? 4 : 0)}
               data-selectable="true"
               transform={`translate(${path.transform.x}, ${path.transform.y}) scale(${path.transform.scale})`}
-              onMouseDown={(e) => handlePathMouseDown(i, e)}
-              onTouchStart={(e) => handlePathMouseDown(i, e)}
+              onPointerDown={(e) => handlePathPointerDown(i, e)}
               style={{
                 cursor: 'pointer',
+                touchAction: 'none',
                 filter: selectedPath === i ? 'drop-shadow(0 0 8px rgba(0,188,212,0.5))' : 'none',
                 ...(selectedPath === i && useStrokes ? { strokeDasharray: '12 4' } : {})
               }}
@@ -444,12 +506,14 @@ export default function SVGEditorDemo() {
               fontSize: 12, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordWrap: 'break-word',
               overflow: 'auto', pointerEvents: 'none', zIndex: 1, boxSizing: 'border-box'
             }}>
-              <code>{highlightSvg(svgCode)}</code>
+              <code>{highlightSvg(displayedCode)}</code>
+              {isAnimating && <span style={{ opacity: 0.7 }}>▋</span>}
             </pre>
             <textarea
               ref={textareaRef} value={svgCode}
               onChange={(e) => handleCodeChange(e.target.value)}
               onScroll={handleScroll}
+              disabled={isAnimating}
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                 background: 'transparent', border: 'none', borderRadius: 8,
@@ -457,7 +521,8 @@ export default function SVGEditorDemo() {
                 fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
                 fontSize: 12, padding: 12, resize: 'none', lineHeight: 1.5, outline: 'none',
                 whiteSpace: 'pre-wrap', wordWrap: 'break-word', overflow: 'auto',
-                zIndex: 2, boxSizing: 'border-box'
+                zIndex: isAnimating ? 0 : 2, boxSizing: 'border-box',
+                opacity: isAnimating ? 0 : 1
               }}
               spellCheck={false}
             />

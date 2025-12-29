@@ -37,13 +37,20 @@ export default function QuestionsSlide() {
           width: 'min(500px, 85vw)',
           height: 'min(500px, 85vw)',
           margin: '0 auto 20px',
-          borderRadius: 20,
+          borderRadius: '50%',
           overflow: 'hidden',
-          background: colors.cardBackground
+          background: colors.cardBackground,
+          position: 'relative'
         }}
       >
         <RiveComponent
-          style={{ width: '100%', height: '100%' }}
+          style={{
+            width: '200%',
+            height: '200%',
+            position: 'absolute',
+            top: '-15%',
+            left: '-50%'
+          }}
           onMouseMove={(e) => rive?.pointerMove(e)}
           onMouseDown={(e) => rive?.pointerDown(e)}
           onMouseUp={(e) => rive?.pointerUp(e)}

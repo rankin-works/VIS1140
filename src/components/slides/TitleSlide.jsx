@@ -11,18 +11,18 @@ export default function TitleSlide() {
         color: colors.accentOrange,
         marginBottom: 20
       }}>
-        Introduction
+        Welcome to
       </div>
       <h1 style={{
         fontSize: 'clamp(5rem, 15vw, 10rem)',
         fontWeight: 700,
-        background: gradients.primary,
+        background: gradients.headerlogo,
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
         lineHeight: 1,
         margin: 0
       }}>
-        VIS1140
+        VIS.1140.N02
       </h1>
       <h2 style={{
         fontSize: 'clamp(2rem, 5vw, 3.5rem)',

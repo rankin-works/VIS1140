@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getPresentation } from '../data/presentations';
 import { renderSlide } from './slides';
+import ParticleNetwork from './ParticleNetwork';
 import { colors, gradients } from '../styles/theme';
 
 export default function PresentationViewer() {
@@ -206,6 +207,9 @@ export default function PresentationViewer() {
             right: '-10%'
           }}
         />
+
+        {/* Particle network with connecting lines */}
+        <ParticleNetwork particleCount={25} lineDistance={150} />
       </div>
 
       {/* Slide content */}
