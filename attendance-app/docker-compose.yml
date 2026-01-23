@@ -1,0 +1,12 @@
+services:
+  attendance:
+    build: .
+    container_name: attendance-1140
+    ports:
+      - "1140:80"
+    volumes:
+      - attendance-data:/data
+    restart: unless-stopped
+
+volumes:
+  attendance-data:
